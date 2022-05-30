@@ -1,13 +1,12 @@
 import numpy as np
 
-from layers import FullyConnectedLayer, ReLULayer, softmax_with_cross_entropy, l2_regularization
+from layers import FullyConnectedLayer, ReLULayer, softmax_with_cross_entropy, l2_regularization, softmax
 
 
 class TwoLayerNet:
     """ Neural network with two fully connected layers """
 
     def __init__(self, n_input, n_output, hidden_layer_size, reg):
-        
         """
         Initializes the neural network
         Arguments:
@@ -18,15 +17,11 @@ class TwoLayerNet:
         """
         self.reg = reg
         # TODO Create necessary layers
-        #raise Exception("Not implemented!)"
-        self.layers = []
-        self.layers.append(FullyConnectedLayer(n_input = n_input, n_output = hidden_layer_size))
-        self.layers.append(ReLULayer())
-        self.layers.append(FullyConnectedLayer(n_input = hidden_layer_size, n_output = n_output))
-        
+        self.layer1 = FullyConnectedLayer(n_input, hidden_layer_size)
+        self.layer2 = ReLULayer()
+        self.layer3 = FullyConnectedLayer(hidden_layer_size, n_output)
 
     def compute_loss_and_gradients(self, X, y):
-                        
         """
         Computes total loss and updates parameter gradients
         on a batch of training examples
@@ -38,34 +33,30 @@ class TwoLayerNet:
         # clear parameter gradients aggregated from the previous pass
         # TODO Set parameter gradient to zeros
         # Hint: using self.params() might be useful!
-        #raise Exception("Not implemented!")
-       
-        # TODO Compute loss and fill param gradients
-        # by running forward and backward passes through the model
-
+        
+        params = self.params()
+        
+        for param_key in params:
+            param = params[param_key]
+            param.grad = np.zeros_like(param.grad)
+            
+        step1 = self.layer1.forward(X)
+        step2 = self.layer2.forward(step1)
+        step3 = self.layer3.forward(step2)
+        
+        loss, dL = softmax_with_cross_entropy(step3, y)
+        
+        dstep3 = self.layer3.backward(dL)
+        dstep2 = self.layer2.backward(dstep3)
+        dstep1 = self.layer1.backward(dstep2)
+        
         # After that, implement l2 regularization on all params
         # Hint: self.params() is useful again!
-        
-        #forward
-        X_next = X.copy()
-        for layer in self.layers:
-            X_next = layer.forward(X_next)
-        loss, grad = softmax_with_cross_entropy(X_next, y)
-        
-        
-        #backward
-        l2 = 0
-        for layer in reversed(self.layers):
-            grad = layer.backward(grad)
-            grad_l2 = 0
-            for params in layer.params():
-                param = layer.params()[params]
-                loss_d, grad_d = l2_regularization(param.value, self.reg)
-                param.grad += grad_d
-                l2 += loss_d
-            grad += grad_l2
-        loss +=l2
-            
+        for param_key in params:
+            param = params[param_key]
+            loss_p, grad_p = l2_regularization(param.value, self.reg)
+            param.grad += grad_p
+            loss += loss_p
 
         return loss
 
@@ -80,22 +71,14 @@ class TwoLayerNet:
         # TODO: Implement predict
         # Hint: some of the code of the compute_loss_and_gradients
         # can be reused
-        pred = np.zeros(X.shape[0], np.int)
-        for layer in self.layers:
-            X = layer.forward(X)
-        pred = np.argmax(X, axis=1)
+        #pred = np.zeros(X.shape[0], np.int)
+        step1 = self.layer1.forward(X)
+        step2 = self.layer2.forward(step1)
+        step3 = self.layer3.forward(step2)
+        probs = softmax(step3)
+        pred = np.array(list(map(lambda x: x.argsort()[-1], probs)))
+
         return pred
 
     def params(self):
-        result = {}
-
-        # TODO Implement aggregating all of the params
-
-        #raise Exception("Not implemented!")
-        for layer_num in range(len(self.layers)):
-            for i in self.layers[layer_num].params():
-                result[str(layer_num) + "_" + i] = self.layers[layer_num].params()[i]
-        return result
-            
-
-        return result
+        return {'W1': self.layer1.W, 'B1': self.layer1.B, 'W2': self.layer3.W, 'B2': self.layer3.B}
