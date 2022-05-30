@@ -86,7 +86,7 @@ class Trainer:
         loss_history = []
         train_acc_history = []
         val_acc_history = []
-        
+
         for epoch in range(self.num_epochs):
             shuffled_indices = np.arange(num_train)
             np.random.shuffle(shuffled_indices)
@@ -99,8 +99,10 @@ class Trainer:
                 # TODO Generate batches based on batch_indices and
                 # use model to generate loss and gradients for all
                 # the params
-
-                raise Exception("Not implemented!")
+                
+                x_batch = self.dataset.train_X[batch_indices]
+                y_batch = self.dataset.train_y[batch_indices]
+                loss = self.model.compute_loss_and_gradients(x_batch, y_batch)
 
                 for param_name, param in self.model.params().items():
                     optimizer = self.optimizers[param_name]
