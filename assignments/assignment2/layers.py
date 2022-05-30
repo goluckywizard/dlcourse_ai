@@ -1,9 +1,24 @@
 import numpy as np
 
 
-def _softmax(z):
-    # z -= np.max(z)
-    return np.exp(z - np.max(z)) / (np.sum(np.exp(z - np.max(z))))
+def l2_regularization(W, reg_strength):
+    """
+    Computes L2 regularization loss on weights and its gradient
+
+    Arguments:
+      W, np array - weights
+      reg_strength - float value
+
+    Returns:
+      loss, single value - l2 regularization loss
+      gradient, np.array same shape as W - gradient of weight by l2 loss
+    """
+    # TODO: Copy from the previous assignment
+    #raise Exception("Not implemented!")
+    loss = reg_strength*np.sum(W**2)
+    grad = 2*reg_strength*W
+    #grad = np.dot(W,reg_strength)
+    return loss, grad
 
 def softmax(predictions):
     '''
@@ -17,39 +32,79 @@ def softmax(predictions):
       probs, np array of the same shape as predictions - 
         probability for every class, 0..1
     '''
+    # TODO implement softmax
+    
     if len(predictions.shape) == 1:
-        return _softmax(predictions)
+        probs = predictions.copy()
+        probs -= np.max(probs)
+        probs = np.exp(probs) / np.sum(np.exp(probs))
+        return probs
     else:
-        return np.apply_along_axis(_softmax, 1, predictions)
+        probs = predictions.copy()
+        probs -= np.max(probs, axis = 1).reshape(-1,1)
+        probs = np.exp(probs)/np.sum(np.exp(probs),axis = 1).reshape(-1,1)
+        return probs
+    
+# def cross_entropy_loss(probs, target_index):
+#     '''
+#     Computes cross-entropy loss
+
+#     Arguments:
+#       probs, np array, shape is either (N) or (batch_size, N) -
+#         probabilities for every class
+#       target_index: np array of int, shape is (1) or (batch_size) -
+#         index of the true class for given sample(s)
+
+#     Returns:
+#       loss: single value
+#     '''
+#     # TODO implement cross-entropy
+    
+#     if len(probs.shape) == 1:
+#         return -np.log(probs[target_index])
+#     else:
+#         #batch
+#         return -np.sum(np.log(probs[np.arange(len(probs)), target_index]))
+
+    
+# def softmax(predictions):
+#     '''
+#     Computes probabilities from scores
+#     Arguments:
+#       predictions, np array, shape is either (N) or (batch_size, N) -
+#         classifier output
+#     Returns:
+#       probs, np array of the same shape as predictions -
+#         probability for every class, 0..1
+#     '''
+#     c = np.max(predictions, keepdims=True, axis=1)
+#     soft_max = np.exp(predictions - c)/np.sum(np.exp(predictions - c), keepdims=True, axis=1)
+#     return soft_max
 
 
 def cross_entropy_loss(probs, target_index):
     '''
     Computes cross-entropy loss
-
     Arguments:
       probs, np array, shape is either (N) or (batch_size, N) -
         probabilities for every class
       target_index: np array of int, shape is (1) or (batch_size) -
         index of the true class for given sample(s)
-
     Returns:
       loss: single value
     '''
-    y_true = np.zeros(probs.shape)
-    if isinstance(target_index, int):
-        y_true[target_index] = 1
-    else:
-        count = 0
-        for sample_y_true in target_index:
-            y_true[count][sample_y_true] = 1
-            count += 1
+    px = np.zeros_like(probs)
+    for row in range(px.shape[0]):
+        px[row,target_index[row]] = 1.
+    qx = probs
 
-    return -np.sum(y_true * np.log(probs))
+    ces = np.zeros_like(target_index, dtype=np.float)
+    for ix in range(0, target_index.shape[0]):
+        ces[ix]= -1. * np.sum(px[ix] * np.log(qx[ix]))
+    return  ces.reshape((target_index.shape[0],1))  
 
-
-def softmax_with_cross_entropy(predictions, target_index):
-    '''
+def softmax_with_cross_entropy(preds, target_index):
+    """
     Computes softmax and cross-entropy loss for model predictions,
     including the gradient
 
@@ -62,85 +117,26 @@ def softmax_with_cross_entropy(predictions, target_index):
     Returns:
       loss, single value - cross-entropy loss
       dprediction, np array same shape as predictions - gradient of predictions by loss value
-    '''
-    y_true = np.zeros(predictions.shape)
-    if isinstance(target_index, int):
-        y_true[target_index] = 1
-    else:
-        count = 0
-        for sample_y_true in target_index:
-            y_true[count][sample_y_true] = 1
-            count += 1
-
-    softmax_prob = softmax(predictions)
-    loss = cross_entropy_loss(softmax_prob, target_index)
-
-    dprediction = softmax_prob - y_true
-
-    return loss, dprediction
-
-
-def l2_regularization(W, reg_strength):
-    '''
-    Computes L2 regularization loss on weights and its gradient
-
-    Arguments:
-      W, np array - weights
-      reg_strength - float value
-
-    Returns:
-      loss, single value - l2 regularization loss
-      gradient, np.array same shape as W - gradient of weight by l2 loss
-    '''
-
-    # TODO: implement l2 regularization and gradient
+    """
+    # TODO: Copy from the previous assignment
+#     probs = softmax(preds)
+#     loss = cross_entropy_loss(probs, target_index)   
+#     dprediction = probs.copy()
     
-    f = lambda x: reg_strength * np.sum(np.square(x))
+#     if len(preds.shape) == 1:
+#         dprediction[target_index] = dprediction[target_index] - 1
+#     else:
+#         dprediction[np.arange(len(dprediction)), target_index] -=1
+ 
+#     return np.mean(loss), dprediction
+    sft_max = softmax(preds)
+    real1 = np.zeros_like(preds)
+    for row in range(real1.shape[0]):
+        real1[row,target_index[row]] = 1.
+    der = sft_max - real1
+    loss = cross_entropy_loss(sft_max, target_index)
+    return np.mean(loss), der/loss.shape[0]
 
-    loss = reg_strength * np.sum(W ** 2)
-
-    it = np.nditer(W, flags=['multi_index'], op_flags=['readwrite'])
-
-    grad = W.copy()
-    while not it.finished:
-        ix = it.multi_index
-
-        bigger_x = W.copy()
-        bigger_x[ix] += reg_strength
-        lesser_x = W.copy()
-        lesser_x[ix] -= reg_strength
-
-        numeric_grad_at_ix = (f(bigger_x) - f(lesser_x)) / (2 * reg_strength)
-        grad[ix] = numeric_grad_at_ix
-        it.iternext()
-
-    return loss, grad
-    
-
-
-def linear_softmax(X, W, target_index):
-    '''
-    Performs linear classification and returns loss and gradient over W
-
-    Arguments:
-      X, np array, shape (num_batch, num_features) - batch of images
-      W, np array, shape (num_features, classes) - weights
-      target_index, np array, shape (num_batch) - index of target classes
-
-    Returns:
-      loss, single value - cross-entropy loss
-      gradient, np.array same shape as W - gradient of weight by loss
-
-    '''
-    predictions = np.dot(X, W)
-
-    # TODO implement prediction and gradient over W
-
-    loss, dW = softmax_with_cross_entropy(predictions, target_index)
-
-    dW = X.transpose().dot(dW)
-
-    return loss, dW
 
 
 class Param:
@@ -169,9 +165,11 @@ class ReLULayer:
     def backward(self, d_out):
         """
         Backward pass
+
         Arguments:
         d_out, np array (batch_size, num_features) - gradient
            of loss function with respect to output
+
         Returns:
         d_result: np array (batch_size, num_features) - gradient
           with respect to input
@@ -205,9 +203,11 @@ class FullyConnectedLayer:
         Backward pass
         Computes gradient with respect to input and
         accumulates gradients within self.W and self.B
+
         Arguments:
         d_out, np array (batch_size, n_output) - gradient
            of loss function with respect to output
+
         Returns:
         d_result: np array (batch_size, n_input) - gradient
           with respect to input
